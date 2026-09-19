@@ -1,9 +1,42 @@
+import 'react-native-gesture-handler';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, LogBox, Text, ScrollView } from 'react-native';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AppProvider, useApp } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
+
+LogBox.ignoreLogs(['new NativeEventEmitter']);
+
+class ErrorBoundary extends React.Component {
+  state = { error: null };
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('App crash:', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#FFF5F7' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#F44336', marginBottom: 12 }}>
+            Something went wrong
+          </Text>
+          <ScrollView>
+            <Text style={{ fontSize: 14, color: '#333', fontFamily: 'monospace' }}>
+              {this.state.error.toString()}
+            </Text>
+          </ScrollView>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function AppContent() {
   const { theme } = useTheme();
@@ -27,10 +60,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppProvider>
+          <AppContent />
+        </AppProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

@@ -10,75 +10,79 @@ Notifications.setNotificationHandler({
 });
 
 export async function requestPermissions() {
-  const { status: existing } = await Notifications.getPermissionsAsync();
-  let finalStatus = existing;
-  if (existing !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-  if (finalStatus !== 'granted') return false;
+  try {
+    const { status: existing } = await Notifications.getPermissionsAsync();
+    let finalStatus = existing;
+    if (existing !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') return false;
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Baby Tracker',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF69B4',
-    });
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Baby Tracker',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF69B4',
+      });
+    }
+    return true;
+  } catch (e) {
+    console.warn('Notification permission error:', e);
+    return false;
   }
-  return true;
 }
 
 export async function scheduleFeedReminder(intervalHours, babyName) {
-  await cancelFeedReminder();
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '🍼 Feeding Time!',
-      body: `It's been ${intervalHours} hours since ${babyName || 'baby'}'s last feed.`,
-      sound: true,
-      priority: Notifications.AndroidNotificationPriority.HIGH,
-    },
-    trigger: {
-      type: 'timeInterval',
-      seconds: intervalHours * 3600,
-      channelId: 'default',
-    },
-    identifier: 'feed-reminder',
-  });
+  try {
+    await cancelFeedReminder();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Feeding Time!',
+        body: `It's been ${intervalHours} hours since ${babyName || 'baby'}'s last feed.`,
+        sound: true,
+      },
+      trigger: { seconds: intervalHours * 3600 },
+      identifier: 'feed-reminder',
+    });
+  } catch (e) {
+    console.warn('Feed reminder error:', e);
+  }
 }
 
 export async function scheduleDiaperReminder(intervalHours, babyName) {
-  await cancelDiaperReminder();
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '👶 Diaper Check!',
-      body: `It's been ${intervalHours} hours since ${babyName || 'baby'}'s last diaper change.`,
-      sound: true,
-    },
-    trigger: {
-      type: 'timeInterval',
-      seconds: intervalHours * 3600,
-      channelId: 'default',
-    },
-    identifier: 'diaper-reminder',
-  });
+  try {
+    await cancelDiaperReminder();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Diaper Check!',
+        body: `It's been ${intervalHours} hours since ${babyName || 'baby'}'s last diaper change.`,
+        sound: true,
+      },
+      trigger: { seconds: intervalHours * 3600 },
+      identifier: 'diaper-reminder',
+    });
+  } catch (e) {
+    console.warn('Diaper reminder error:', e);
+  }
 }
 
 export async function scheduleSleepReminder(intervalHours, babyName) {
-  await cancelSleepReminder();
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '😴 Nap Time?',
-      body: `${babyName || 'Baby'} has been awake for ${intervalHours} hours.`,
-      sound: true,
-    },
-    trigger: {
-      type: 'timeInterval',
-      seconds: intervalHours * 3600,
-      channelId: 'default',
-    },
-    identifier: 'sleep-reminder',
-  });
+  try {
+    await cancelSleepReminder();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Nap Time?',
+        body: `${babyName || 'Baby'} has been awake for ${intervalHours} hours.`,
+        sound: true,
+      },
+      trigger: { seconds: intervalHours * 3600 },
+      identifier: 'sleep-reminder',
+    });
+  } catch (e) {
+    console.warn('Sleep reminder error:', e);
+  }
 }
 
 export async function cancelFeedReminder() {
