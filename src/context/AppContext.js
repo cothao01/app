@@ -205,9 +205,8 @@ export function AppProvider({ children }) {
   const refreshFromCloud = useCallback(async () => {
     try {
       const cloudEvents = await cloudFetchEvents();
-      const babyEvents = cloudEvents.filter(e => !e.babyId || e.babyId === state.activeBabyId);
-      babyEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      return babyEvents;
+      cloudEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      return cloudEvents;
     } catch (e) {
       console.warn('Cloud refresh failed:', e);
       return state.events;
