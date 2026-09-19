@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import * as Storage from '../storage/storage';
+import { postEvent as cloudPostEvent, fetchEvents as cloudFetchEvents } from '../api/api';
 import { generateId } from '../utils/time';
 import { scheduleFeedReminder, scheduleDiaperReminder, cancelFeedReminder, cancelDiaperReminder, requestPermissions } from '../notifications/notifications';
 
@@ -122,9 +123,11 @@ export function AppProvider({ children }) {
   }, [state.babies]);
 
   const addEvent = useCallback(async (event) => {
-    const newEvent = { id: generateId(), timestamp: new Date().toISOString(), notes: '', ...event };
+    const newEvent = { id: generateId(), timestamp: new Date().toISOString(), babyId: state.activeBabyId, notes: '', ...event };
     const events = await Storage.addEvent(state.activeBabyId, newEvent);
     dispatch({ type: 'SET_EVENTS', payload: events });
+
+    cloudPostEvent(newEvent).catch(() => {});
 
     if (event.type === 'sleep' && !event.endTimestamp) {
       dispatch({ type: 'SET_ACTIVE_SLEEP', payload: newEvent });
@@ -199,6 +202,18 @@ export function AppProvider({ children }) {
     }, 0);
   }, [getTodayEvents]);
 
+  const refreshFromCloud = useCallback(async () => {
+    try {
+      const cloudEvents = await cloudFetchEvents();
+      const babyEvents = cloudEvents.filter(e => !e.babyId || e.babyId === state.activeBabyId);
+      babyEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      return babyEvents;
+    } catch (e) {
+      console.warn('Cloud refresh failed:', e);
+      return state.events;
+    }
+  }, [state.activeBabyId, state.events]);
+
   const value = {
     ...state,
     activeBaby,
@@ -212,6 +227,7 @@ export function AppProvider({ children }) {
     getLastEvent,
     getTodayEvents,
     getTodaySleepMinutes,
+    refreshFromCloud,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

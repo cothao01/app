@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import LogEntryItem from '../components/LogEntryItem';
@@ -8,13 +8,36 @@ const filters = ['All', 'Feed', 'Diaper', 'Sleep', 'Growth'];
 
 export default function HistoryScreen() {
   const { theme } = useTheme();
-  const { events, deleteEvent } = useApp();
+  const { events, deleteEvent, refreshFromCloud } = useApp();
   const [filter, setFilter] = useState('All');
+  const [cloudEvents, setCloudEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadCloudData = useCallback(async () => {
+    setLoading(true);
+    const data = await refreshFromCloud();
+    setCloudEvents(data);
+    setLoading(false);
+  }, [refreshFromCloud]);
+
+  useEffect(() => {
+    loadCloudData();
+  }, [loadCloudData]);
+
+  const mergedEvents = useMemo(() => {
+    const localIds = new Set(events.map(e => e.id));
+    const combined = [...events];
+    cloudEvents.forEach(ce => {
+      if (!localIds.has(ce.id)) combined.push(ce);
+    });
+    combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return combined;
+  }, [events, cloudEvents]);
 
   const filtered = useMemo(() => {
-    if (filter === 'All') return events;
-    return events.filter(e => e.type === filter.toLowerCase());
-  }, [events, filter]);
+    if (filter === 'All') return mergedEvents;
+    return mergedEvents.filter(e => e.type === filter.toLowerCase());
+  }, [mergedEvents, filter]);
 
   const grouped = useMemo(() => {
     const groups = {};
@@ -62,22 +85,29 @@ export default function HistoryScreen() {
         ))}
       </View>
 
-      <FlatList
-        data={grouped}
-        keyExtractor={(item, i) => item.label + i}
-        renderItem={({ item: group }) => (
-          <View>
-            <Text style={[styles.dateHeader, { color: theme.textSecondary }]}>{group.label}</Text>
-            {group.data.map(event => (
-              <LogEntryItem key={event.id} event={event} onDelete={handleDelete} />
-            ))}
-          </View>
-        )}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={
-          <Text style={[styles.empty, { color: theme.textSecondary }]}>No entries yet. Start tracking!</Text>
-        }
-      />
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ color: theme.textSecondary, marginTop: 8 }}>Loading from cloud...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={grouped}
+          keyExtractor={(item, i) => item.label + i}
+          renderItem={({ item: group }) => (
+            <View>
+              <Text style={[styles.dateHeader, { color: theme.textSecondary }]}>{group.label}</Text>
+              {group.data.map(event => (
+                <LogEntryItem key={event.id} event={event} onDelete={handleDelete} />
+              ))}
+            </View>
+          )}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <Text style={[styles.empty, { color: theme.textSecondary }]}>No entries yet. Start tracking!</Text>
+          }
+        />
+      )}
     </View>
   );
 }

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { BarChart, LineChart } from 'react-native-chart-kit';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -24,36 +24,59 @@ function dayLabel(d) {
 
 export default function StatsScreen() {
   const { theme } = useTheme();
-  const { events } = useApp();
+  const { events, refreshFromCloud } = useApp();
   const [tab, setTab] = useState('feeds');
+  const [cloudEvents, setCloudEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadCloudData = useCallback(async () => {
+    setLoading(true);
+    const data = await refreshFromCloud();
+    setCloudEvents(data);
+    setLoading(false);
+  }, [refreshFromCloud]);
+
+  useEffect(() => {
+    loadCloudData();
+  }, [loadCloudData]);
+
+  const allEvents = useMemo(() => {
+    const localIds = new Set(events.map(e => e.id));
+    const combined = [...events];
+    cloudEvents.forEach(ce => {
+      if (!localIds.has(ce.id)) combined.push(ce);
+    });
+    combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return combined;
+  }, [events, cloudEvents]);
 
   const days = useMemo(() => getLast7Days(), []);
 
   const feedCounts = useMemo(() => {
     return days.map(d => {
       const next = new Date(d); next.setDate(next.getDate() + 1);
-      return events.filter(e => e.type === 'feed' && new Date(e.timestamp) >= d && new Date(e.timestamp) < next).length;
+      return allEvents.filter(e => e.type === 'feed' && new Date(e.timestamp) >= d && new Date(e.timestamp) < next).length;
     });
-  }, [events, days]);
+  }, [allEvents, days]);
 
   const diaperCounts = useMemo(() => {
     return days.map(d => {
       const next = new Date(d); next.setDate(next.getDate() + 1);
-      return events.filter(e => e.type === 'diaper' && new Date(e.timestamp) >= d && new Date(e.timestamp) < next).length;
+      return allEvents.filter(e => e.type === 'diaper' && new Date(e.timestamp) >= d && new Date(e.timestamp) < next).length;
     });
-  }, [events, days]);
+  }, [allEvents, days]);
 
   const sleepHours = useMemo(() => {
     return days.map(d => {
       const next = new Date(d); next.setDate(next.getDate() + 1);
-      const sleepEvents = events.filter(e => e.type === 'sleep' && e.endTimestamp && new Date(e.timestamp) >= d && new Date(e.timestamp) < next);
+      const sleepEvents = allEvents.filter(e => e.type === 'sleep' && e.endTimestamp && new Date(e.timestamp) >= d && new Date(e.timestamp) < next);
       const totalMs = sleepEvents.reduce((sum, e) => sum + (new Date(e.endTimestamp) - new Date(e.timestamp)), 0);
       return Math.round((totalMs / 3600000) * 10) / 10;
     });
-  }, [events, days]);
+  }, [allEvents, days]);
 
   const avgTimeBetweenFeeds = useMemo(() => {
-    const feedEvents = events.filter(e => e.type === 'feed').slice(0, 20);
+    const feedEvents = allEvents.filter(e => e.type === 'feed').slice(0, 20);
     if (feedEvents.length < 2) return null;
     let totalDiff = 0;
     for (let i = 0; i < feedEvents.length - 1; i++) {
@@ -63,7 +86,7 @@ export default function StatsScreen() {
     const hrs = Math.floor(avgMs / 3600000);
     const mins = Math.floor((avgMs % 3600000) / 60000);
     return `${hrs}h ${mins}m`;
-  }, [events]);
+  }, [allEvents]);
 
   const labels = days.map(dayLabel);
 
@@ -94,6 +117,13 @@ export default function StatsScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.bg }]} contentContainerStyle={styles.content}>
       <Text style={[styles.title, { color: theme.text }]}>Statistics</Text>
+
+      {loading && (
+        <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+          <ActivityIndicator size="small" color={theme.primary} />
+          <Text style={{ color: theme.textSecondary, marginTop: 6, fontSize: 13 }}>Syncing cloud data...</Text>
+        </View>
+      )}
 
       {avgTimeBetweenFeeds && (
         <View style={[styles.avgCard, { backgroundColor: theme.feedColor + '15', borderColor: theme.feedColor + '40' }]}>
