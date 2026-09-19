@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Baby Tracker",
+    "slug": "baby-tracker",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8E8EE"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F8E8EE"
+      },
+      "package": "com.babytracker.app",
+      "permissions": ["NOTIFICATIONS", "SCHEDULE_EXACT_ALARM"]
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "baby-tracker"
+      }
+    }
+  }
+}
