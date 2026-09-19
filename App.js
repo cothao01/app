@@ -1,7 +1,6 @@
-import 'react-native-gesture-handler';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View, LogBox, Text, ScrollView } from 'react-native';
+import { ActivityIndicator, View, LogBox, Text, ScrollView, Platform } from 'react-native';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AppProvider, useApp } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -44,8 +43,9 @@ function AppContent() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.bg }}>
-        <ActivityIndicator size="large" color={theme.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF5F7' }}>
+        <ActivityIndicator size="large" color="#FF69B4" />
+        <Text style={{ marginTop: 16, color: '#FF69B4', fontSize: 18, fontWeight: '700' }}>Loading Baby Tracker...</Text>
       </View>
     );
   }

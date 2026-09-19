@@ -44,41 +44,56 @@ export function AppProvider({ children }) {
   }, []);
 
   async function loadData() {
-    const [babies, activeBabyId, settings] = await Promise.all([
-      Storage.getBabies(),
-      Storage.getActiveBabyId(),
-      Storage.getSettings(),
-    ]);
+    try {
+      const [babies, activeBabyId, settings] = await Promise.all([
+        Storage.getBabies(),
+        Storage.getActiveBabyId(),
+        Storage.getSettings(),
+      ]);
 
-    let finalBabyId = activeBabyId;
-    let finalBabies = babies;
+      let finalBabyId = activeBabyId;
+      let finalBabies = babies;
 
-    if (finalBabies.length === 0) {
+      if (finalBabies.length === 0) {
+        const defaultBaby = { id: generateId(), name: 'Baby', birthDate: null, photo: null };
+        finalBabies = [defaultBaby];
+        finalBabyId = defaultBaby.id;
+        await Storage.saveBabies(finalBabies);
+        await Storage.setActiveBabyId(finalBabyId);
+      } else if (!finalBabyId) {
+        finalBabyId = finalBabies[0].id;
+        await Storage.setActiveBabyId(finalBabyId);
+      }
+
+      const events = await Storage.getEvents(finalBabyId);
+      const activeSleep = events.find(e => e.type === 'sleep' && !e.endTimestamp) || null;
+
+      dispatch({
+        type: 'INIT',
+        payload: {
+          babies: finalBabies,
+          activeBabyId: finalBabyId,
+          events,
+          settings: { ...Storage.defaultSettings, ...settings },
+          activeSleepEvent: activeSleep,
+        },
+      });
+
+      requestPermissions().catch(() => {});
+    } catch (e) {
+      console.error('Failed to load data:', e);
       const defaultBaby = { id: generateId(), name: 'Baby', birthDate: null, photo: null };
-      finalBabies = [defaultBaby];
-      finalBabyId = defaultBaby.id;
-      await Storage.saveBabies(finalBabies);
-      await Storage.setActiveBabyId(finalBabyId);
-    } else if (!finalBabyId) {
-      finalBabyId = finalBabies[0].id;
-      await Storage.setActiveBabyId(finalBabyId);
+      dispatch({
+        type: 'INIT',
+        payload: {
+          babies: [defaultBaby],
+          activeBabyId: defaultBaby.id,
+          events: [],
+          settings: Storage.defaultSettings,
+          activeSleepEvent: null,
+        },
+      });
     }
-
-    const events = await Storage.getEvents(finalBabyId);
-    const activeSleep = events.find(e => e.type === 'sleep' && !e.endTimestamp) || null;
-
-    dispatch({
-      type: 'INIT',
-      payload: {
-        babies: finalBabies,
-        activeBabyId: finalBabyId,
-        events,
-        settings: { ...Storage.defaultSettings, ...settings },
-        activeSleepEvent: activeSleep,
-      },
-    });
-
-    await requestPermissions();
   }
 
   const activeBaby = state.babies.find(b => b.id === state.activeBabyId) || state.babies[0];
