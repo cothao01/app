@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -10,8 +10,26 @@ import QuickAction from '../components/QuickAction';
 export default function DashboardScreen({ navigation }) {
   const { theme } = useTheme();
   const {
-    activeBaby, getLastEvent, getTodayEvents, getTodaySleepMinutes, activeSleepEvent, addEvent
+    activeBaby, getLastEvent, getTodayEvents, getTodaySleepMinutes, activeSleepEvent, addEvent, updateBaby
   } = useApp();
+
+  const [editingName, setEditingName] = useState(false);
+  const [nameText, setNameText] = useState('');
+  const nameInputRef = useRef(null);
+
+  const startEditing = () => {
+    setNameText(activeBaby?.name || '');
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.focus(), 50);
+  };
+
+  const saveName = () => {
+    const trimmed = nameText.trim();
+    if (trimmed && activeBaby && trimmed !== activeBaby.name) {
+      updateBaby(activeBaby.id, { name: trimmed });
+    }
+    setEditingName(false);
+  };
 
   const lastFeed = getLastEvent('feed');
   const lastDiaper = getLastEvent('diaper');
@@ -29,8 +47,27 @@ export default function DashboardScreen({ navigation }) {
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.bg }]} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.babyName, { color: theme.text }]}>{activeBaby?.name || 'Baby'}</Text>
+        <View style={{ flex: 1 }}>
+          {editingName ? (
+            <TextInput
+              ref={nameInputRef}
+              style={[styles.babyName, styles.nameInput, { color: theme.text, borderBottomColor: theme.accent }]}
+              value={nameText}
+              onChangeText={setNameText}
+              onBlur={saveName}
+              onSubmitEditing={saveName}
+              returnKeyType="done"
+              selectTextOnFocus
+              maxLength={30}
+            />
+          ) : (
+            <TouchableOpacity onPress={startEditing} activeOpacity={0.6}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.babyName, { color: theme.text }]}>{activeBaby?.name || 'Baby'}</Text>
+                <MaterialCommunityIcons name="pencil-outline" size={16} color={theme.textSecondary} style={{ marginLeft: 6, marginTop: 2 }} />
+              </View>
+            </TouchableOpacity>
+          )}
           {activeBaby?.birthDate && (
             <Text style={[styles.age, { color: theme.textSecondary }]}>{formatAge(activeBaby.birthDate)}</Text>
           )}
@@ -89,6 +126,7 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   babyName: { fontSize: 28, fontWeight: '800' },
+  nameInput: { borderBottomWidth: 2, paddingVertical: 2, paddingHorizontal: 0, margin: 0 },
   age: { fontSize: 14, marginTop: 2 },
   settingsBtn: { padding: 8 },
   summaryRow: {
